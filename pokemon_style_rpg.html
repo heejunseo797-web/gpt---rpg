@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title> 쳇RPG </title>
+<style>
+body{margin:0;background:#111;color:#fff;font-family:sans-serif;text-align:center}
+.screen{display:none;min-height:100vh;padding:20px}
+#title{display:block}
+.big{font-size:48px}
+.mid{font-size:22px}
+.bar{width:92%;height:26px;background:#444;margin:8px auto;border-radius:14px}
+.hp{height:100%;background:red;border-radius:14px}
+button{width:92%;padding:16px;font-size:20px;margin:8px;border-radius:14px}
+.flash-red{background:#600!important}
+.flash-white{background:#eee!important}
+.top{position:fixed;top:10px;right:12px;font-size:18px}
+</style>
+</head>
+<body>
+
+<div id="title" class="screen">
+  <h1 class="big"> 🗡️ 쳇 RPG 🗡️ </h1>
+  <p class="mid">아무 화면이나 터치</p>
+</div>
+
+<div id="game" class="screen">
+  <div class="top">💰 <span id="gold">0</span> | Lv <span id="lv"></span></div>
+
+  <div class="big">🧝‍♂️</div>
+  <div class="mid">전사</div>
+  <div class="bar"><div id="pHp" class="hp"></div></div>
+
+  <div class="big" id="eEmoji"></div>
+  <div class="mid" id="eName"></div>
+  <div class="bar"><div id="eHp" class="hp"></div></div>
+
+  <button id="atk">⚔ 공격</button>
+</div>
+
+<div id="shop" class="screen">
+  <h2 class="big">🛒 상점</h2>
+  <p>골드: <span id="shopGold"></span></p>
+  <div id="shopItems"></div>
+  <button onclick="next()">➡ 계속</button>
+</div>
+
+<div id="levelup" class="screen">
+  <h2 class="big">⬆ 레벨업!</h2>
+  <button onclick="stat('hp')">❤️ 체력 +30</button>
+  <button onclick="stat('atk')">⚔ 공격력 +10</button>
+</div>
+
+<div id="gameover" class="screen">
+  <h1 class="big">💀 GAME OVER</h1>
+  <button onclick="reset()">다시 시작</button>
+</div>
+
+<script>
+let player={
+ lv:1, exp:0, need:3,
+ maxHp:150, hp:150, atk:12
+};
+let gold=0, kill=0, enemy={}, canAttack=true;
+
+/* 몬스터 대량 */
+const monsters=[
+["슬라임","🫠"],["쥐","🐀"],["박쥐","🦇"],["개구리","🐸"],["뱀","🐍"],
+["고블린","👺"],["늑대","🐺"],["해골","💀"],["좀비","🧟"],["전갈","🦂"],
+["도적","🥷"],["오우거","👹"],["야수","🦍"],["흡혈귀","🧛"],["유령","👻"],
+["정령","🔮"],["거미","🕷️"],["저주눈","🧿"],["언데드","🦴"],["트롤","🧌"]
+];
+
+const weapons=[
+["철검",5,30],["강철검",10,60],["기사검",15,100],["마검",22,150],["전설검",35,220]
+];
+
+document.body.onclick=()=>{
+ if(title.style.display!=="none"){load();show("game");spawn();}
+};
+
+function show(id){
+ document.querySelectorAll(".screen").forEach(s=>s.style.display="none");
+ document.getElementById(id).style.display="block";
+}
+
+function spawn(){
+ canAttack=true;
+ let boss=kill>0 && kill%10===0;
+ if(boss){
+  enemy={name:"보스 드래곤",emoji:"👑🐉",hp:320,maxHp:300,atk:20};
+ }else{
+  let m=monsters[Math.floor(Math.random()*monsters.length)];
+  enemy={name:m[0],emoji:m[1],hp:80+kill*2,maxHp:80+kill*2,atk:8+kill};
+ }
+ eName.innerText=enemy.name;
+ eEmoji.innerText=enemy.emoji;
+ update();
+}
+
+atk.onclick=()=>{
+ if(!canAttack) return;
+ canAttack=false;
+ enemy.hp-=player.atk;
+ flash("white"); vibrate();
+
+ if(enemy.hp<=0){
+  gold+=Math.floor(Math.random()*40)+10;
+  kill++; player.exp++;
+  if(player.exp>=player.need){player.exp=0;show("levelup");save();return;}
+  openShop(); return;
+ }
+
+ setTimeout(enemyAtk,800);
+ setTimeout(()=>canAttack=true,2000);
+ update();
+};
+
+function enemyAtk(){
+ player.hp-=enemy.atk;
+ flash("red"); vibrate();
+ if(player.hp<=0){save();show("gameover");}
+ update();
+}
+
+function openShop(){
+ show("shop"); shopGold.innerText=gold;
+ shopItems.innerHTML="";
+ let p=document.createElement("button");
+ p.innerText="회복포션 (+40) 10G";
+ p.onclick=()=>{if(gold>=20){gold-=20;player.hp=Math.min(player.maxHp,player.hp+40);next();}};
+ shopItems.appendChild(p);
+
+ if(Math.random()<0.9){
+  let w=weapons[Math.floor(Math.random()*weapons.length)];
+  let b=document.createElement("button");
+  b.innerText=`${w[0]} (+${w[1]}) ${w[2]}G`;
+  b.onclick=()=>{if(gold>=w[2]){gold-=w[2];player.atk+=w[1];next();}};
+  shopItems.appendChild(b);
+ }
+ save();
+}
+
+function stat(t){
+ if(t==="hp"){player.maxHp+=20;player.hp=player.maxHp;}
+ if(t==="atk"){player.atk+=3;}
+ player.lv++; player.need+=2;
+ next();
+}
+
+function next(){show("game");spawn();save();}
+
+function update(){
+ pHp.style.width=(player.hp/player.maxHp*100)+"%";
+ eHp.style.width=(enemy.hp/enemy.maxHp*100)+"%";
+ goldSpan=gold;
+ gold.innerText=gold;
+ lv.innerText=player.lv;
+}
+
+function flash(c){
+ document.body.classList.add(c==="red"?"flash-red":"flash-white");
+ setTimeout(()=>document.body.className="",120);
+}
+function vibrate(){if(navigator.vibrate) navigator.vibrate(50);}
+
+function save(){
+ localStorage.setItem("gptrpg",JSON.stringify({player,gold,kill}));
+}
+function load(){
+ let s=localStorage.getItem("gptrpg");
+ if(s){let d=JSON.parse(s);player=d.player;gold=d.gold;kill=d.kill;}
+}
+function reset(){
+ localStorage.removeItem("gptrpg");
+ location.reload();
+}
+</script>
+</body>
+</html>
